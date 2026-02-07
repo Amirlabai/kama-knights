@@ -6,15 +6,12 @@ import { getActiveUsers, getIO } from '../services/socketService';
 import { isPointInRegion } from '../services/geofenceService';
 
 export const sendAlert = async (req: Request, res: Response) => {
-    const { senderId, location, message } = req.body;
-    // location: { lat, lng }
+    const { location, message } = req.body;
 
     try {
-        // 1. Validate Sender
-        const sender = await User.findById(senderId);
-        if (!sender || !sender.isApproved) {
-            return res.status(403).json({ message: 'Unauthorized sender' });
-        }
+        // Get senderId from authenticated user
+        const senderId = req.user!._id;
+        const sender = req.user!; // Already loaded by middleware
 
         // 2. Get Active Region (Assuming single active region for now, or find region containing point)
         const region = await Region.findOne({ isActive: true });
@@ -55,7 +52,7 @@ export const sendAlert = async (req: Request, res: Response) => {
                 message,
                 location, // Target location
                 sentAt: new Date(),
-                senderPhone: sender.phoneNumber
+                senderId: sender._id // Send ID instead of phone number for privacy
             });
             targetedSockets.push(user.socketId);
         });

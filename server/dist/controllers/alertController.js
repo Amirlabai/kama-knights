@@ -15,18 +15,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendAlert = void 0;
 const Alert_1 = __importDefault(require("../models/Alert"));
 const Region_1 = __importDefault(require("../models/Region"));
-const User_1 = __importDefault(require("../models/User"));
 const socketService_1 = require("../services/socketService");
 const geofenceService_1 = require("../services/geofenceService");
 const sendAlert = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { senderId, location, message } = req.body;
-    // location: { lat, lng }
+    const { location, message } = req.body;
     try {
-        // 1. Validate Sender
-        const sender = yield User_1.default.findById(senderId);
-        if (!sender || !sender.isApproved) {
-            return res.status(403).json({ message: 'Unauthorized sender' });
-        }
+        // Get senderId from authenticated user
+        const senderId = req.user._id;
+        const sender = req.user; // Already loaded by middleware
         // 2. Get Active Region (Assuming single active region for now, or find region containing point)
         const region = yield Region_1.default.findOne({ isActive: true });
         if (!region) {
@@ -62,7 +58,7 @@ const sendAlert = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 message,
                 location, // Target location
                 sentAt: new Date(),
-                senderPhone: sender.phoneNumber
+                senderId: sender._id // Send ID instead of phone number for privacy
             });
             targetedSockets.push(user.socketId);
         });

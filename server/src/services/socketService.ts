@@ -15,10 +15,17 @@ export const initSocket = (serverIo: Server) => {
     io.on('connection', (socket: Socket) => {
         console.log('Socket connected:', socket.id);
 
-        // User joins -> registers their ID and initial state
-        socket.on('join', (data: { userId: string; location: { lat: number; lng: number }; networkType: 'wifi' | 'mobile' }) => {
-            activeUsers[socket.id] = { ...data, socketId: socket.id };
-            console.log(`User ${data.userId} joined. Net: ${data.networkType}`);
+        const authenticatedUser = socket.data.user;
+
+        // User joins - use authenticated userId
+        socket.on('join', (data: { location: { lat: number; lng: number }; networkType: 'wifi' | 'mobile' }) => {
+            activeUsers[socket.id] = {
+                userId: authenticatedUser._id.toString(), // From authenticated socket
+                socketId: socket.id,
+                location: data.location,
+                networkType: data.networkType
+            };
+            console.log(`User ${authenticatedUser.phoneNumber} joined. Net: ${data.networkType}`);
         });
 
         // Pings location update

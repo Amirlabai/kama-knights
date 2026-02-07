@@ -7,10 +7,16 @@ const initSocket = (serverIo) => {
     io = serverIo;
     io.on('connection', (socket) => {
         console.log('Socket connected:', socket.id);
-        // User joins -> registers their ID and initial state
+        const authenticatedUser = socket.data.user;
+        // User joins - use authenticated userId
         socket.on('join', (data) => {
-            activeUsers[socket.id] = Object.assign(Object.assign({}, data), { socketId: socket.id });
-            console.log(`User ${data.userId} joined. Net: ${data.networkType}`);
+            activeUsers[socket.id] = {
+                userId: authenticatedUser._id.toString(), // From authenticated socket
+                socketId: socket.id,
+                location: data.location,
+                networkType: data.networkType
+            };
+            console.log(`User ${authenticatedUser.phoneNumber} joined. Net: ${data.networkType}`);
         });
         // Pings location update
         socket.on('updateLocation', (data) => {
