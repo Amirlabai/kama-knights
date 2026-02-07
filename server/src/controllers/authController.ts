@@ -15,15 +15,25 @@ export const loginOrRegister = async (req: Request, res: Response) => {
     }
 
     try {
-        let user = await User.findOne({ phoneNumber });
+        // Find user by comparing hashed phone numbers
+        const allUsers = await User.find();
+        let user = null;
+
+        for (const u of allUsers) {
+            if (await u.comparePhoneNumber(phoneNumber)) {
+                user = u;
+                break;
+            }
+        }
 
         if (!user) {
-            // Create new user (Pending approval)
-            user = await User.create({ phoneNumber });
+            // Create new user with hashed phone number
+            const hashedPhone = await User.hashPhoneNumber(phoneNumber);
+            user = await User.create({ phoneNumber: hashedPhone });
             return res.status(201).json({
                 message: 'Registration successful. Waiting for admin approval.',
                 status: 'pending',
-                user: { phoneNumber: user.phoneNumber, isApproved: user.isApproved }
+                user: { _id: user._id, isApproved: user.isApproved }
             });
         }
 
@@ -31,11 +41,11 @@ export const loginOrRegister = async (req: Request, res: Response) => {
             return res.status(403).json({
                 message: 'Account not approved yet.',
                 status: 'pending',
-                user: { phoneNumber: user.phoneNumber, isApproved: user.isApproved }
+                user: { _id: user._id, isApproved: user.isApproved }
             });
         }
 
-        // Use is approved, return token
+        // User is approved, return token
         const token = generateToken(user._id);
         return res.status(200).json({
             message: 'Login successful',
@@ -43,7 +53,6 @@ export const loginOrRegister = async (req: Request, res: Response) => {
             token,
             user: {
                 _id: user._id,
-                phoneNumber: user.phoneNumber,
                 isApproved: user.isApproved,
                 role: user.role
             }
@@ -74,7 +83,7 @@ export const approveUser = async (req: Request, res: Response) => {
 // Admin: Get all users
 export const getUsers = async (req: Request, res: Response) => {
     try {
-        const users = await User.find().sort({ createdAt: -1 });
+        const users = await User.find().sort({ createdAt: -1 }).select('-phoneNumber');
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });

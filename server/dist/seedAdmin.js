@@ -20,11 +20,20 @@ const promoteToAdmin = (phoneNumber) => __awaiter(void 0, void 0, void 0, functi
     try {
         yield mongoose_1.default.connect(process.env.MONGO_URI);
         console.log('Connected to DB');
-        let user = yield User_1.default.findOne({ phoneNumber });
+        // Find user by comparing hashed phone numbers
+        const allUsers = yield User_1.default.find();
+        let user = null;
+        for (const u of allUsers) {
+            if (yield u.comparePhoneNumber(phoneNumber)) {
+                user = u;
+                break;
+            }
+        }
         if (!user) {
             console.log(`User ${phoneNumber} not found. Creating new Admin user...`);
+            const hashedPhone = yield User_1.default.hashPhoneNumber(phoneNumber);
             user = yield User_1.default.create({
-                phoneNumber,
+                phoneNumber: hashedPhone,
                 isApproved: true,
                 isAdmin: true,
                 role: 'admin'
@@ -37,7 +46,7 @@ const promoteToAdmin = (phoneNumber) => __awaiter(void 0, void 0, void 0, functi
             user.isApproved = true;
             yield user.save();
         }
-        console.log(`SUCCESS: ${phoneNumber} is now an Admin.`);
+        console.log(`SUCCESS: User is now an Admin.`);
         process.exit(0);
     }
     catch (error) {

@@ -9,12 +9,22 @@ const promoteToAdmin = async (phoneNumber: string) => {
         await mongoose.connect(process.env.MONGO_URI as string);
         console.log('Connected to DB');
 
-        let user = await User.findOne({ phoneNumber });
+        // Find user by comparing hashed phone numbers
+        const allUsers = await User.find();
+        let user = null;
+
+        for (const u of allUsers) {
+            if (await u.comparePhoneNumber(phoneNumber)) {
+                user = u;
+                break;
+            }
+        }
 
         if (!user) {
             console.log(`User ${phoneNumber} not found. Creating new Admin user...`);
+            const hashedPhone = await User.hashPhoneNumber(phoneNumber);
             user = await User.create({
-                phoneNumber,
+                phoneNumber: hashedPhone,
                 isApproved: true,
                 isAdmin: true,
                 role: 'admin'
@@ -27,7 +37,7 @@ const promoteToAdmin = async (phoneNumber: string) => {
             await user.save();
         }
 
-        console.log(`SUCCESS: ${phoneNumber} is now an Admin.`);
+        console.log(`SUCCESS: User is now an Admin.`);
         process.exit(0);
     } catch (error) {
         console.error('Error:', error);

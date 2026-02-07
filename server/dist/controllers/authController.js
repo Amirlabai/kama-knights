@@ -25,24 +25,33 @@ const loginOrRegister = (req, res) => __awaiter(void 0, void 0, void 0, function
         return res.status(400).json({ message: 'Phone number is required' });
     }
     try {
-        let user = yield User_1.default.findOne({ phoneNumber });
+        // Find user by comparing hashed phone numbers
+        const allUsers = yield User_1.default.find();
+        let user = null;
+        for (const u of allUsers) {
+            if (yield u.comparePhoneNumber(phoneNumber)) {
+                user = u;
+                break;
+            }
+        }
         if (!user) {
-            // Create new user (Pending approval)
-            user = yield User_1.default.create({ phoneNumber });
+            // Create new user with hashed phone number
+            const hashedPhone = yield User_1.default.hashPhoneNumber(phoneNumber);
+            user = yield User_1.default.create({ phoneNumber: hashedPhone });
             return res.status(201).json({
                 message: 'Registration successful. Waiting for admin approval.',
                 status: 'pending',
-                user: { phoneNumber: user.phoneNumber, isApproved: user.isApproved }
+                user: { _id: user._id, isApproved: user.isApproved }
             });
         }
         if (!user.isApproved) {
             return res.status(403).json({
                 message: 'Account not approved yet.',
                 status: 'pending',
-                user: { phoneNumber: user.phoneNumber, isApproved: user.isApproved }
+                user: { _id: user._id, isApproved: user.isApproved }
             });
         }
-        // Use is approved, return token
+        // User is approved, return token
         const token = generateToken(user._id);
         return res.status(200).json({
             message: 'Login successful',
@@ -50,7 +59,6 @@ const loginOrRegister = (req, res) => __awaiter(void 0, void 0, void 0, function
             token,
             user: {
                 _id: user._id,
-                phoneNumber: user.phoneNumber,
                 isApproved: user.isApproved,
                 role: user.role
             }
@@ -80,7 +88,7 @@ exports.approveUser = approveUser;
 // Admin: Get all users
 const getUsers = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const users = yield User_1.default.find().sort({ createdAt: -1 });
+        const users = yield User_1.default.find().sort({ createdAt: -1 }).select('-phoneNumber');
         res.json(users);
     }
     catch (error) {
